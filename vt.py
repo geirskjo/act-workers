@@ -40,6 +40,8 @@ from functools import partialmethod
 import requests
 from virus_total_apis import PublicApi as VirusTotalApi
 
+EXCLUDED_MALWARE_NAMES = ['trojan', 'malware', 'generic']
+
 AV_HEURISTICS = ['trojan', 'adware', 'dropper', 'miner',
                  'backdoor', 'malware', 'downloader', 'rat',
                  'hacktool', 'ransomware', 'cryptolocker',
@@ -124,7 +126,7 @@ def handle_hexdigest(actapi, vtapi, hexdigest):
             continue
 
         name = name_extraction(engine, body)
-        if name:
+        if name and name not in EXCLUDED_MALWARE_NAMES:
             names.add(name)
 
         res = body['result'].lower()
