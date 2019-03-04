@@ -23,14 +23,13 @@ requirements:
     pip install virustotal-api
 '''
 
-from __future__ import print_function
-
 import argparse
 import collections
 import contextlib
 import ipaddress
 import re
 import sys
+import logging
 import warnings
 from logging import error
 import traceback
@@ -121,7 +120,7 @@ def handle_hexdigest(actapi, vtapi, hexdigest, cache={}):
         return
 
     cache['hexdigest'] = True
-    
+
     names = set()
     kind = collections.Counter()
     with no_ssl_verification():
@@ -209,7 +208,7 @@ def handle_ip(actapi, vtapi, ip):
     try:
         results = response['results']
     except KeyError:
-        print(response, "in handle_ip for", ip)
+        logging.error("%s in handle_ip for %s", response, ip)
         sys.exit(1)
 
     # create a dictionary of url that is observed in relation to the address.
@@ -220,7 +219,7 @@ def handle_ip(actapi, vtapi, ip):
     if 'undetected_urls' in results:
         for u in map(urllib.parse.urlparse, [x[0] for x in results['undetected_urls']]):
             urls[u.netloc].append(u)
-        
+
     if 'resolutions' in results:
         for resolution in results['resolutions']:
             actapi.fact('resolvesTo')\
@@ -239,14 +238,14 @@ def handle_ip(actapi, vtapi, ip):
 
     if 'detected_downloaded_samples' in results:
         for sample in results['detected_downloaded_samples']:
-            
+
             my_uri = add_uri(actapi, ip_type, ip, ['network', ip, '', '', '', ''])
-            
+
             actapi.fact('at')\
                 .source('content', sample['sha256'])\
                 .destination('uri', my_uri)\
                 .add()
-            
+
             actapi.fact('represents')\
                 .source('hash', sample['sha256'])\
                 .destination('content', sample['sha256'])\
@@ -257,17 +256,17 @@ def handle_ip(actapi, vtapi, ip):
     if 'detected_communicating_samples' in results:
         for sample in results['detected_communicating_samples']:
             my_uri = add_uri(actapi, ip_type, ip, ['network', ip, '', '', '', ''])
-            
+
             actapi.fact('connectsTo', ip_type)\
                 .source('content', sample['sha256'])\
                 .destination('uri', my_uri)\
                 .add()
-            
+
             actapi.fact('represents')\
                 .source('hash', sample['sha256'])\
                 .destination('content', sample['sha256'])\
                 .add()
-            
+
             handle_hexdigest(actapi, vtapi, sample['sha256'])
 
 
@@ -278,16 +277,15 @@ def add_uri(actapi: act.Act,
             cache: dict={}) -> str:
     """Add a URI to the platform by creating the componentOf and scheme facts
 If called multiple times with arguments creating the same URI, the facts will only sent once.
-Return: The URI added    
+Return: The URI added
 """
     try:
         my_uri = str(urllib.parse.urlunparse(url))
-        print("****", my_uri)
         if my_uri in cache:
             return my_uri
 
         cache[my_uri] = True
-        
+
         actapi.fact("componentOf")\
               .source(addr_type, addr)\
               .destination("uri", my_uri)\
@@ -296,32 +294,32 @@ Return: The URI added
         actapi.fact("scheme", url[0])\
               .source("uri", my_uri)\
               .add()
-        
+
         if url[2]:  # path
             actapi.fact("componentOf")\
                   .source("path", url[2])\
                   .destination("uri", my_uri)\
                   .add()
-            
+
             basename = os.path.basename(url[2])
             if basename.strip():
                 actapi.fact("componentOf")\
                       .source("path", basename)\
                       .destination("uri", my_uri)\
                       .add()
-                
-                if url[3]:  # query
-                    actapi.fact("componentOf")\
-                          .source("query", url[3])\
-                          .destination("uri", my_uri)\
-                          .add()
+
+        if url[3]:  # query
+            actapi.fact("componentOf")\
+                  .source("query", url[3])\
+                  .destination("uri", my_uri)\
+                  .add()
 
     except act.base.ResponseError as e:
         sys.stderr.write(str(e))
-        
+
     return my_uri
 
-    
+
 def handle_domain(actapi, vtapi, domain):
     """Read IP address from stdin, query VirusTotal and
     output a JSON text readable by generic_uploaderr.py"""
@@ -332,7 +330,7 @@ def handle_domain(actapi, vtapi, domain):
     try:
         results = response['results']
     except KeyError:
-        print(response, "in handle_domain for", domain)
+        logging.error("%s in handle_domain for %s", response, domain)
         sys.exit(1)
 
     if 'detected_urls' in results:
@@ -400,7 +398,7 @@ def main():
     auth = None
     if args.http_user:
         auth = (args.http_user, args.http_password)
-        
+
     actapi = act.Act(args.act_baseurl, args.user_id, args.loglevel, args.logfile, "vt-enrichment", requests_common_kwargs={'auth': auth})
 
     in_data = sys.stdin.read().strip()
