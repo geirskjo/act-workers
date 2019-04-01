@@ -182,11 +182,11 @@ class Attribute(object):  # attributeattributes in misp babel
         return "{0} {1}:{2}".format(self.id, self.act_type, self.value)
 
 
-def hash_f(x: Text) -> Tuple[Text, Text]:
+def hash_f(x: Text) -> Tuple[Optional[Text], Optional[Text]]:
     return "hash", x.lower()
 
 
-def certificate_f(x: Text) -> Tuple[Text, Text]:
+def certificate_f(x: Text) -> Tuple[Optional[Text], Optional[Text]]:
     return "certificate", x.lower()
 
 
