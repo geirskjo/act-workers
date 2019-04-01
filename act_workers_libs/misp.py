@@ -182,35 +182,35 @@ class Attribute(object):  # attributeattributes in misp babel
         return "{0} {1}:{2}".format(self.id, self.act_type, self.value)
 
 
-def hash_f(x: Text) -> Tuple[Optional[Text], Optional[Text]]:
+def hash_f(x: Text) -> Tuple[Text, Text]:
     return "hash", x.lower()
 
 
-def certificate_f(x: Text) -> Tuple[Optional[Text], Optional[Text]]:
+def certificate_f(x: Text) -> Tuple[Text, Text]:
     return "certificate", x.lower()
 
 
-def threat_actor_f(x: Text) -> Tuple[Optional[Text], Optional[Text]]:
+def threat_actor_f(x: Text) -> Tuple[Text, Text]:
     return "threatActor", x.lower()
 
 
-def campaign_f(x: Text) -> Tuple[Optional[Text], Optional[Text]]:
+def campaign_f(x: Text) -> Tuple[Text, Text]:
     return "campaign", x.lower()
 
 
-def email_f(x: Text) -> Tuple[Optional[Text], Optional[Text]]:
+def email_f(x: Text) -> Tuple[Text, Text]:
     return "email", x.lower()
 
 
-def person_f(x: Text) -> Tuple[Optional[Text], Optional[Text]]:
+def person_f(x: Text) -> Tuple[Text, Text]:
     return "person", x.lower()
 
 
-def organization_f(x: Text) -> Tuple[Optional[Text], Optional[Text]]:
+def organization_f(x: Text) -> Tuple[Text, Text]:
     return "organization", x.lower()
 
 
-def fqdn_f(x: Text) -> Tuple[Optional[Text], Optional[Text]]:
+def fqdn_f(x: Text) -> Tuple[Text, Text]:
     return "fqdn", x.lower()
 
 
@@ -228,21 +228,21 @@ def ip_f(x: Text) -> Tuple[Optional[Text], Optional[Text]]:
     return None, None
 
 
-def uri_f(x: Text) -> Tuple[Optional[Text], Optional[Text]]:
+def uri_f(x: Text) -> Tuple[Text, Text]:
     if not x.startswith("http"):
         x = "http://{0}".format(x)
     return "uri", x
 
 
-def user_agent_f(x: Text) -> Tuple[Optional[Text], Optional[Text]]:
+def user_agent_f(x: Text) -> Tuple[Text, Text]:
     return "userAgent", x
 
 
-def vulnerability_f(x: Text) -> Tuple[Optional[Text], Optional[Text]]:
+def vulnerability_f(x: Text) -> Tuple[Text, Text]:
     return "vulnerability", x.lower()
 
 
-def mutex_f(x: Text) -> Tuple[Optional[Text], Optional[Text]]:
+def mutex_f(x: Text) -> Tuple[Text, Text]:
     return "mutex", x
 
 
