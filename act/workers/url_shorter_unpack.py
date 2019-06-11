@@ -22,31 +22,27 @@ from logging import error
 
 import urllib3
 
-import requests
+from act.workers.libs import worker
+from typing import Text, List
 from urllib.parse import urlparse
-import sys
-import traceback
 import act
 import act.api
-from act.workers.libs import worker
-from typing import Text
+import argparse
+import requests
+import sys
+import traceback
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 MAX_RECURSIVE = 10  # max number of redirects to attempt to follow (failsafe)
 
-URL_SHORTERNERS = set(['adf.ly', 'bit.ly', 'bitly.com', 'evassmat.com',
-                       'goo.gl', 'is.gd', 'lnkd.in', 'www.t2m.io', 'tiny.cc',
-                       'tinyurl.com', 'x.co'])
 
-USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.169 Safari/537.36"
-
-
-def check_redirect(url: Text, timeout: int = 30) -> Text:
+def check_redirect(url: Text, url_shorteners: List[Text], user_agent: Text,
+                   timeout: int = 30) -> Text:
     """Take a url. Attempt to make it a http:// url and check if it is to one
     of the known url shortening services. If it is.. find the first redirect"""
 
-    headers = {'User-agent': USER_AGENT}
+    headers = {'User-agent': user_agent}
 
     org_url = url
 
@@ -55,7 +51,7 @@ def check_redirect(url: Text, timeout: int = 30) -> Text:
         url = "http://{}".format(url)
     p = urlparse(url)
 
-    if p.hostname not in URL_SHORTERNERS:
+    if p.hostname not in url_shorteners:
         return org_url
 
     r = requests.get(url, allow_redirects=False, timeout=timeout, headers=headers)
@@ -65,7 +61,8 @@ def check_redirect(url: Text, timeout: int = 30) -> Text:
     return org_url
 
 
-def process(api: act.api.Act, output_format: Text = "json") -> None:
+def process(api: act.api.Act, shorteners: List[Text], user_agent: Text,
+            output_format: Text = "json") -> None:
     """Read queries from stdin, resolve each one through passivedns printing
     generic_uploader data to stdout"""
 
@@ -76,7 +73,7 @@ def process(api: act.api.Act, output_format: Text = "json") -> None:
 
         n = 0
         while True:
-            redirect = check_redirect(query)
+            redirect = check_redirect(query, shorteners, user_agent)
             if redirect == query or n > MAX_RECURSIVE:
                 break
             n += 1
@@ -91,15 +88,33 @@ def process(api: act.api.Act, output_format: Text = "json") -> None:
             query = redirect
 
 
+def parseargs() -> argparse.Namespace:
+    parser = worker.parseargs("URL unshortener worker")
+
+    parser.add_argument("--url-shorteners", dest="url_shorteners",
+                        help="Comma separated list of shortener-domains")
+    parser.add_argument("--user-agent", dest="user_agent",
+                        help="User-agent to present to the redirect services")
+
+    return worker.handle_args(parser)
+
+
 def main() -> None:
     """Main function"""
     # Look for default ini file in "/etc/actworkers.ini" and
     # ~/config/actworkers/actworkers.ini (or replace .config with
     # $XDG_CONFIG_DIR if set)
-    args = worker.handle_args(worker.parseargs("URL unshortener worker"))
+    args = parseargs()
+
+    try:
+        shorteners = [x.strip() for x in args.url_shorteners.split(",")]
+    except AttributeError:
+        sys.stderr.write("Empty list of shorteners?\n")
+        sys.exit(1)
+
     actapi = worker.init_act(args)
 
-    process(actapi, args.output_format)
+    process(actapi, shorteners, args.user_agent, args.output_format)
 
 
 def main_log_error() -> None:
