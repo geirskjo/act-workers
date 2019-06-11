@@ -33,16 +33,20 @@ from typing import Text
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-MAX_RECURSIVE = 100  # max number of redirects to attempt to follow (failsafe)
+MAX_RECURSIVE = 10  # max number of redirects to attempt to follow (failsafe)
 
 URL_SHORTERNERS = set(['adf.ly', 'bit.ly', 'bitly.com', 'evassmat.com',
-                       'goo.gl', 'is.gd', 'lnkd.in', 'tiny.cc', 'tinyurl.com',
-                       'x.co'])
+                       'goo.gl', 'is.gd', 'lnkd.in', 'www.t2m.io', 'tiny.cc',
+                       'tinyurl.com', 'x.co'])
+
+USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.169 Safari/537.36"
 
 
 def check_redirect(url: Text, timeout: int = 30) -> Text:
     """Take a url. Attempt to make it a http:// url and check if it is to one
     of the known url shortening services. If it is.. find the first redirect"""
+
+    headers = {'User-agent': USER_AGENT}
 
     org_url = url
 
@@ -54,7 +58,7 @@ def check_redirect(url: Text, timeout: int = 30) -> Text:
     if p.hostname not in URL_SHORTERNERS:
         return org_url
 
-    r = requests.get(url, allow_redirects=False, timeout=timeout)
+    r = requests.get(url, allow_redirects=False, timeout=timeout, headers=headers)
     if r.is_redirect:
         return str(r.next.url)  # type: ignore
 
@@ -77,6 +81,8 @@ def process(api: act.api.Act, output_format: Text = "json") -> None:
                 break
             n += 1
 
+            act.api.helpers.handle_uri(api, query, output_format=output_format)
+            act.api.helpers.handle_uri(api, redirect, output_format=output_format)
             act.api.helpers.handle_fact(
                 api.fact("redirectsTo")
                 .source("url", query)
