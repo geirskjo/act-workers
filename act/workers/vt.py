@@ -163,13 +163,11 @@ def handle_hexdigest(
                                     output_format=output_format)
 
         # toolType may be None (as not all nameing schemes include toolType)
-        if not toolType:
-            continue
-
-        act.api.helpers.handle_fact(actapi.fact('classifiedAs', 'v')
-                                    .source('tool', name)
-                                    .destination('toolType', toolType),
-                                    output_format=output_format)
+        if toolType:
+            act.api.helpers.handle_fact(actapi.fact('classifiedAs', 'v')
+                                        .source('tool', name)
+                                        .destination('toolType', toolType),
+                                        output_format=output_format)
 
     if 'detected_urls' in results:
         for u in map(urllib.parse.urlparse, [x['url'] for x in results['detected_urls']]):
