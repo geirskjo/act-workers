@@ -83,6 +83,8 @@ def name_extraction(engine: Text, body: dict) -> Optional[Tuple[Text, Optional[T
         if match:
             # Kaspersky does not allways include toolType in the naming scheme
             if match.groups()[1]:
+                # Extract field 1 (inner match group) as field 0 (outer match group)
+                # contains the ending ':'
                 toolType: Optional[Text] = match.groups()[1].lower()
             else:
                 toolType = None
