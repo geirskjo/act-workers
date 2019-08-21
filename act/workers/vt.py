@@ -36,7 +36,7 @@ import urllib.parse
 import warnings
 from functools import partialmethod
 from logging import error
-from typing import Generator, List, Optional, Text, Tuple
+from typing import Generator, List, Optional, Text, Tuple, Set
 
 import requests
 
@@ -121,7 +121,7 @@ def handle_hexdigest(
 
     cache['hexdigest'] = True
 
-    names = set()
+    names: Set[Tuple[Optional[Text], Optional[Text]]] = set()
 
     with no_ssl_verification():
         response = vtapi.get_file_report(hexdigest)
