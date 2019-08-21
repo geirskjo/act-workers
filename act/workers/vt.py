@@ -46,16 +46,21 @@ from virus_total_apis import PublicApi as VirusTotalApi
 
 ADWARE_OVERRIDES = ['opencandy', 'monetize', 'adload', 'somoto']
 
+# Type:Platform/Family.Variant!Suffixes
 MS_RE = re.compile(r"(.*?):(.*?)\/(?:([^!.]+))?(?:[!.](\w+))?")
+
+# [Prefix:]Behaviour.Platform.Name[.Variant]
 KASPERSKY_RE = re.compile(r"((.+?):)?(.+?)\.(.+?)\.([^.]+)(\.(.+))?")
+
+# <Threat Type>.<Platform>.<Malware Family>.<Variant>.<Other info*>
+# *Optional
 TREND_RE = re.compile(r"(.+?)\.(.+?)\.(.+?)\.(.+?)(\.(.+))?")
-VERSION = "{}.{}".format(sum(1 for x in [False, set(), ["Y"], {}, 0] if x), sum(1 for y in [False] if y))
 
 
 def parseargs() -> argparse.ArgumentParser:
     """Extract command lines argument"""
 
-    parser = worker.parseargs('ACT VT Client v{}'.format(VERSION))
+    parser = worker.parseargs('ACT VT Client')
     parser.add_argument('--apikey', metavar='KEY',
                         help='VirusTotal API key')
     group = parser.add_mutually_exclusive_group()
