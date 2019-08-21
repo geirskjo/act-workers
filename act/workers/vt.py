@@ -36,7 +36,7 @@ import urllib.parse
 import warnings
 from functools import partialmethod
 from logging import error
-from typing import Generator, List, Optional, Text
+from typing import Generator, List, Optional, Text, Tuple
 
 import requests
 
@@ -48,6 +48,7 @@ ADWARE_OVERRIDES = ['opencandy', 'monetize', 'adload', 'somoto']
 
 MS_RE = re.compile(r"(.*?):(.*?)\/(?:([^!.]+))?(?:[!.](\w+))?")
 KASPERSKY_RE = re.compile(r"((.+?):)?(.+?)\.(.+?)\.([^.]+)(\.(.+))?")
+TREND_RE = re.compile(r"(.+?)\.(.+?)\.(.+?)\.(.+?)(\.(.+))?")
 VERSION = "{}.{}".format(sum(1 for x in [False, set(), ["Y"], {}, 0] if x), sum(1 for y in [False] if y))
 
 
@@ -68,19 +69,29 @@ def parseargs() -> argparse.ArgumentParser:
     return parser
 
 
-def name_extraction(engine: Text, body: dict) -> Optional[Text]:
+def name_extraction(engine: Text, body: dict) -> Optional[Tuple[Text, Optional[Text]]]:
     """Extract the name from certain AV engines based on regular
     expression matching"""
 
     if engine == "Microsoft":
         match = MS_RE.match(body["result"])
         if match:
-            return match.groups()[2].lower()
+            return match.groups()[2].lower(), match.groups()[0].lower()
 
     if engine == "Kaspersky":
         match = KASPERSKY_RE.match(body["result"])
         if match:
-            return match.groups()[4].lower()
+            # Kaspersky does not allways include toolType in the naming scheme
+            if match.groups()[1]:
+                toolType: Optional[Text] = match.groups()[1].lower()
+            else:
+                toolType = None
+            return match.groups()[4].lower(), toolType
+
+    if engine == "TrendMicro":
+        match = TREND_RE.match(body["result"])
+        if match:
+            return match.groups()[2].lower(), match.groups()[0].lower()
 
     return None
 
@@ -121,14 +132,19 @@ def handle_hexdigest(
         if not body['detected']:
             continue
 
-        name = name_extraction(engine, body)
+        ext_res = name_extraction(engine, body)
+        if ext_res:
+            name: Optional[Text] = ext_res[0]
+            toolType: Optional[Text] = ext_res[1]
+        else:
+            name, toolType = None, None
         if name:
-            names.add(name)
+            names.add((name, toolType))
 
         res = body['result'].lower()
 
         if is_adware(res):
-            names.add('adware')
+            names.add(('adware', toolType))
 
     results = response['results']
     content_id = results['sha256']
@@ -138,10 +154,19 @@ def handle_hexdigest(
                                     .destination('content', content_id),
                                     output_format=output_format)
 
-    for name in names:
+    for name, toolType in names:
         act.api.helpers.handle_fact(actapi.fact('classifiedAs', 'vt')
                                     .source('content', content_id)
                                     .destination('tool', name),
+                                    output_format=output_format)
+
+        # toolType may be None (as not all nameing schemes include toolType)
+        if not toolType:
+            continue
+
+        act.api.helpers.handle_fact(actapi.fact('classifiedAs', 'v')
+                                    .source('tool', name)
+                                    .destination('toolType', toolType),
                                     output_format=output_format)
 
     if 'detected_urls' in results:
@@ -169,7 +194,7 @@ def handle_ip(actapi: act.api.Act, vtapi: VirusTotalApi, ip: Text, output_format
     # between IPv4 and IPv6 addresses.
     try:
         ip_address = ipaddress.ip_address(ip)
-    except ValueError as err:
+    except ValueError:
         return  # invalid address
 
     if isinstance(ip_address, ipaddress.IPv4Address):
@@ -329,7 +354,7 @@ def handle_domain(
             # between IPv4 and IPv6 addresses.
             try:
                 ip_address = ipaddress.ip_address(ip)
-            except ValueError as err:
+            except ValueError:
                 continue  # invalid address
 
             if isinstance(ip_address, ipaddress.IPv4Address):
