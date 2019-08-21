@@ -121,7 +121,7 @@ def handle_hexdigest(
 
     cache['hexdigest'] = True
 
-    names: Set[Tuple[Optional[Text], Optional[Text]]] = set()
+    names: Set[Tuple[Text, Optional[Text]]] = set()
 
     with no_ssl_verification():
         response = vtapi.get_file_report(hexdigest)
@@ -136,17 +136,12 @@ def handle_hexdigest(
 
         ext_res = name_extraction(engine, body)
         if ext_res:
-            name: Optional[Text] = ext_res[0]
-            toolType: Optional[Text] = ext_res[1]
-        else:
-            name, toolType = None, None
-        if name:
-            names.add((name, toolType))
+            names.add((ext_res[0], ext_res[1]))
 
         res = body['result'].lower()
 
         if is_adware(res):
-            names.add(('adware', toolType))
+            names.add(('adware', 'adware'))
 
     results = response['results']
     content_id = results['sha256']
