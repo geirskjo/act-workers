@@ -117,14 +117,15 @@ def name_extraction(engine: Text, body: dict) -> Optional[Tuple[Text, Optional[T
     return None
 
 
-def cve_extraction(body: dict) -> Optional[Text]:
+def cve_extraction(body: dict) -> Set[Text]:
     """Extract any CVE names"""
 
+    s = set()
     match = CVE_RE.findall(body['result'])
     if match:
-        found: Text = match[0]
-        return found
-    return None
+        for e in match:
+            s.add(e.lower())
+    return s
 
 
 def is_adware(text: Text) -> bool:
@@ -164,9 +165,7 @@ def handle_hexdigest(
         if not body['detected']:
             continue
 
-        cve = cve_extraction(body)
-        if cve:
-            cves.add(cve.lower())
+        cves.update(cve_extraction(body))
 
         ext_res = name_extraction(engine, body)
         if ext_res:
