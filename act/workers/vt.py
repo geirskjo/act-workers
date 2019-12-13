@@ -120,12 +120,7 @@ def name_extraction(engine: Text, body: dict) -> Optional[Tuple[Text, Optional[T
 def cve_extraction(body: dict) -> Set[Text]:
     """Extract any CVE names"""
 
-    s = set()
-    match = CVE_RE.findall(body['result'])
-    if match:
-        for e in match:
-            s.add(e.lower())
-    return s
+    return {cve.lower() for cve in CVE_RE.findall(body['result'])}
 
 
 def is_adware(text: Text) -> bool:
