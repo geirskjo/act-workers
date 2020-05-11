@@ -61,6 +61,9 @@ CVE_RE = re.compile(r"(CVE-\d+-\d+)")
 # *Optional
 TREND_RE = re.compile(r"(.+?)\.(.+?)\.(.+?)\.(.+?)(\.(.+))?")
 
+# Platform.Type.Family.Variant[@Modifier]
+GDATA_RE = re.compile(r"(.+?)\.(.+?)\.(.+?)\.(.+?)(?:@(.+?))?")
+
 
 def parseargs() -> argparse.ArgumentParser:
     """Extract command lines argument"""
@@ -89,8 +92,13 @@ def parseargs() -> argparse.ArgumentParser:
 
 
 def name_extraction(engine: Text, body: dict) -> Optional[Tuple[Text, Optional[Text]]]:
-    """Extract the name from certain AV engines based on regular
+    """Extract the (name, tool-type) from certain AV engines based on regular
     expression matching"""
+
+    if engine == "GData":
+        match = GDATA_RE.match(body["result"])
+        if match:
+            return match.groups()[2].lower(), match.groups()[1].lower()
 
     if engine == "Microsoft":
         match = MS_RE.match(body["result"])
