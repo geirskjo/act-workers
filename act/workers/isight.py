@@ -56,11 +56,15 @@ def parseargs() -> argparse.ArgumentParser:
                         help='iSight API key')
     parser.add_argument('--publickey', metavar='PUBLICKEY',
                         help='iSight API key')
+    parser.add_argument('--debugdir', metavar='DIR',
+                        help='Dump directory for output')
     parser.add_argument(
         '--days',
+        default='1',
         help='How many days back to look for data')
     parser.add_argument(
         '--root',
+        default='https://api.isightpartners.com',
         help='api endpoint')
 
     return parser
@@ -87,12 +91,14 @@ def main() -> None:
     data = iSightHandler.indicators()
 
     if not data['success']:
-        print("ERROR!")
+        logging.error("Unable to download from isight API")
         return
 
+    timestamp = int(time.time())
     ### DEBUG -- dump json to disc for each run
-    with open("/tmp/error.json", "w") as f:
-        json.dump(data, f)
+    if args.debugdir:
+        with open(os.path.join(args.debugdir, "error-{0}.json".format(timestamp)), "w") as f:
+            json.dump(data, f)
 
     for i, dp in enumerate(data['message']):
         ### --- IP -> malwareFamily
@@ -201,8 +207,9 @@ def main() -> None:
 
         ### -- DEBUG!
         else:
-            fields = [k for k, v in dp.items() if v and k not in ['reportId', 'title', 'ThreatScape', 'audience', 'intelligenceType', 'publishDate', 'reportLink', 'webLink']]
-            logging.error("Unable to handle index[%s] with fields '%s'", i, ", ".join(fields))
+            if args.debugdir:
+                fields = [k for k, v in dp.items() if v and k not in ['reportId', 'title', 'ThreatScape', 'audience', 'intelligenceType', 'publishDate', 'reportLink', 'webLink']]
+                logging.error("[%s] Unable to handle index[%s] with fields '%s'", timestamp, i, ", ".join(fields))
 
 ## -----------------------------------------
 
