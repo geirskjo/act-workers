@@ -28,6 +28,7 @@ from typing import Generator, List, Optional, Text, Tuple, Set
 import argparse
 import collections
 import contextlib
+import datetime
 import email
 import hashlib
 import hmac
@@ -121,10 +122,10 @@ def main() -> None:
     } if args.proxy_string else None
 
     iSightHandler = ISightAPIRequestHandler(args.root, args.privatekey, args.publickey)
-    data = iSightHandler.indicators()
+    data = iSightHandler.indicators(args.days)
 
-    if not data['success']:
-        logging.error("Unable to download from isight API")
+    if 'success' not in data or not data['success']:
+        logging.error("Unable to download from isight API [%s]", data['message'] if 'message' in data else "NA")
         return
 
     timestamp = int(time.time())
@@ -148,7 +149,10 @@ def main() -> None:
             handle_fact(actapi.fact('mentions')
                         .source('report', reportID)
                         .destination('uri', dp['url']))
-            handle_uri(actapi, dp['url'])
+            try:
+                handle_uri(actapi, dp['url'])
+            except act.api.base.ValidationError as err:
+                logging.error("%s while storing url from mentions [%s]", err, dp['url'])
         ### --- IP -> malwareFamily
         if dp['malwareFamily'] and dp['ip']:
             chain = act.api.fact.fact_chain(
@@ -165,7 +169,11 @@ def main() -> None:
                 handle_fact(fact)
         ### --- URL -> malwareFamily
         elif dp['networkType'] == 'url' and dp['malwareFamily']:
-            handle_uri(actapi, dp['url'])
+            try:
+                handle_uri(actapi, dp['url'])
+            except act.api.base.ValidationError as err:
+                logging.error("%s while storing url from mentions [%s]", err, dp['url'])
+
             chain = act.api.fact.fact_chain(
                 actapi.fact('connectsTo')
                 .source('content', '*')
@@ -291,11 +299,14 @@ class ISightAPIRequestHandler(object):
         self.private_key = private_key
         self.accept_version = '2.6'
 
-    def indicators(self) -> None:
+    def indicators(self, days = 1) -> None:
         """Download indicators last X days"""
 
+        toTS = int(datetime.datetime.now().timestamp())
+        fromTS = int((datetime.datetime.now() - datetime.timedelta(days=int(days))).timestamp())
+
         time_stamp = email.utils.formatdate(localtime=True)
-        ENDPOINT = self.INDICATORS
+        ENDPOINT = self.INDICATORS + "?startDate={0}&endDate={1}".format(fromTS, toTS)
         accept_header = 'application/json'
         new_data = ENDPOINT + self.accept_version + accept_header + time_stamp
 
@@ -318,7 +329,7 @@ class ISightAPIRequestHandler(object):
             return json.loads(r.text)
         else:
             logging.error(r.text)
-            return []
+            return {'message': r.text}
 
 
 @contextlib.contextmanager
