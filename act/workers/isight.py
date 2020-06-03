@@ -37,6 +37,7 @@ import logging
 import os
 import re
 import requests
+import socket
 import sys
 import time
 import traceback
@@ -70,6 +71,38 @@ def parseargs() -> argparse.ArgumentParser:
     return parser
 
 
+def is_valid_ipv4_address(address):
+    try:
+        socket.inet_pton(socket.AF_INET, address)
+    except socket.error:  # not a valid address
+        return False
+    return True
+
+
+def is_valid_ipv6_address(address):
+    try:
+        socket.inet_pton(socket.AF_INET6, address)
+    except socket.error:  # not a valid address
+        return False
+    return True
+
+
+OBJECT_MAP = {
+    "sourceDomain": lambda x: "fqdn",
+    "sourceIP": lambda x: "ipv4" if is_valid_ipv4_address(x) else "ipv6" if is_valid_ipv6_address(x) else None,
+    "fuzzyHash": lambda x: "hash",
+    "md5": lambda x: "hash",
+    "sha1": lambda x: "hash",
+    "sha256": lambda x: "hash",
+    "asn": lambda x: "asn",
+    "cidr": lambda x: "ipv4Network",
+    "domain": lambda x: "fqdn",
+    "ip": lambda x: "ipv4" if is_valid_ipv4_address(x) else "ipv6" if is_valid_ipv6_address(x) else None,
+    "malwareFamily": lambda x: "tool",
+    "actor": lambda x: "threatActor",
+}
+
+
 def main() -> None:
     """main function"""
 
@@ -101,6 +134,21 @@ def main() -> None:
             json.dump(data, f)
 
     for i, dp in enumerate(data['message']):
+        ### --- Handle mentions facts
+        # Create report ID from the url (same approach as for feeds) and title to this ID.
+        reportID = hashlib.sha256(dp['webLink'].encode('utf8')).hexdigest()
+        handle_fact(actapi.fact('name', dp['title']).source('report', reportID))
+        for obj in OBJECT_MAP:  # run through all fields that we want to mention
+            if obj in dp and dp[obj]:  # if the report contains data in the field
+                factType = OBJECT_MAP[obj](dp[obj])  # translate to ACT fact type
+                handle_fact(actapi.fact('mentions')  # and create fact from field
+                            .source('report', reportID)
+                            .destination(factType, dp[obj]))
+        if dp['url']:
+            handle_fact(actapi.fact('mentions')
+                        .source('report', reportID)
+                        .destination('uri', dp['url']))
+            handle_uri(actapi, dp['url'])
         ### --- IP -> malwareFamily
         if dp['malwareFamily'] and dp['ip']:
             chain = act.api.fact.fact_chain(
@@ -204,11 +252,27 @@ def main() -> None:
                             .destination('threatActor', dp['actor']))
                         for fact in chain:
                             handle_fact(fact)
+        ### We do have a sha256 of a file (but possibly nothing else). Add the content to hexdigest facts
+        elif dp['fileType'] and dp['sha256']:
+            for digest in ['sha1', 'md5', 'sha256']:
+                if dp[digest]:
+                    print("DEBUG!!!")
+                    handle_fact(actapi.fact('represents')
+                                .source('hash', dp[digest])
+                                .destination('content', dp['sha256']))
+            if args.debugdir:
+                fields = [k for k, v in dp.items() if v and k not in ['reportId', 'title', 'ThreatScape',
+                                                                      'audience', 'intelligenceType',
+                                                                      'publishDate', 'reportLink', 'webLink']]
+                logging.error("[%s] Extra fields while handeling index[%s] '%s'", timestamp, i, ", ".join(fields))
+
 
         ### -- DEBUG!
         else:
             if args.debugdir:
-                fields = [k for k, v in dp.items() if v and k not in ['reportId', 'title', 'ThreatScape', 'audience', 'intelligenceType', 'publishDate', 'reportLink', 'webLink']]
+                fields = [k for k, v in dp.items() if v and k not in ['reportId', 'title', 'ThreatScape',
+                                                                      'audience', 'intelligenceType',
+                                                                      'publishDate', 'reportLink', 'webLink']]
                 logging.error("[%s] Unable to handle index[%s] with fields '%s'", timestamp, i, ", ".join(fields))
 
 ## -----------------------------------------
