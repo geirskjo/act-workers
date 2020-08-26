@@ -53,12 +53,12 @@ def get_scio_report() -> Dict:
     return cast(Dict, json.load(sys.stdin))
 
 
-def report_mentions_fact(actapi: act.api.Act, object_type: Text, object_values: Set[Text], report_id: Text, output_format: Text) -> None:
+def report_mentions_fact(actapi: act.api.Act,
+                         object_type: Text,
+                         object_values: Set[Text],
+                         report_id: Text,
+                         output_format: Text) -> None:
     """Add mentions fact to report"""
-    if not actapi:
-        for value in set(object_values):
-            print(f"source (report:{report_id}) -- [ mentions ] --> ({object_type}:{value})")
-        return
     for value in set(object_values):
         try:
             handle_fact(
@@ -71,7 +71,9 @@ def report_mentions_fact(actapi: act.api.Act, object_type: Text, object_values: 
             error("Unable to create linked fact: %s" % e)
 
 
-def add_to_act(actapi: act.api.Act, doc: Dict, output_format: Text = "json") -> None:
+def add_to_act(actapi: act.api.Act,
+               doc: Dict,
+               output_format: Text = "json") -> None:
     """Add a report to the ACT platform"""
 
     report_id: Text = doc["hexdigest"]
@@ -80,13 +82,12 @@ def add_to_act(actapi: act.api.Act, doc: Dict, output_format: Text = "json") -> 
     indicators: Dict = doc.get("indicators", {})
 
     try:
-        if actapi:
-            # Report title
-            handle_fact(
-                actapi.fact("name", title)
-                .source("report", report_id),
-                output_format
-            )
+        # Report title
+        handle_fact(
+            actapi.fact("name", title)
+            .source("report", report_id),
+            output_format
+        )
     except act.api.base.ResponseError as e:
         error("Unable to create fact: %s" % e)
 
@@ -98,9 +99,8 @@ def add_to_act(actapi: act.api.Act, doc: Dict, output_format: Text = "json") -> 
 
         value_fn = ACT_FN_MAP.get(act_indicator_type, lambda x: x)
 
-        values = {
-            value_fn(value) for value in indicators.get(scio_indicator_type, [])
-        }
+        values = {value_fn(value) for value
+                  in indicators.get(scio_indicator_type, [])}
 
         report_mentions_fact(
             actapi,
@@ -120,7 +120,7 @@ def add_to_act(actapi: act.api.Act, doc: Dict, output_format: Text = "json") -> 
                 output_format
             )
         except ValueError as err:
-            warning("Creating fact to {} fails on IP validation {}".format(ip, err))
+            warning(f"Creating fact to {ip} fails on IP validation {err}")
 
     # For SHA256, create content object
     for sha256 in set(indicators.get("sha256", [])):
@@ -134,7 +134,7 @@ def add_to_act(actapi: act.api.Act, doc: Dict, output_format: Text = "json") -> 
     # Add emails as URI components
     for email in set(indicators.get("email", [])):
         try:
-            email_uri = "email://{}".format(email)
+            email_uri = f"email://{email}"
             handle_uri(actapi, email_uri, output_format=output_format)
 
             handle_fact(
@@ -144,22 +144,23 @@ def add_to_act(actapi: act.api.Act, doc: Dict, output_format: Text = "json") -> 
                 output_format
             )
         except act.api.base.ValidationError as err:
-            warning("Creating fact from {} failes du to URI validation {}".format(email_uri, err))
+            warning(f"Fact from {email_uri} failes du to URI validation {err}")
         except act.api.schema.MissingField:
-            warning("Unable to create facts from uri: {}".format(email_uri))
+            warning(f"Unable to create facts from uri: {email_uri}")
 
     # Add all URI components
     for uri in set(indicators.get("uri", [])):
         try:
             handle_uri(actapi, uri, output_format=output_format)
         except act.api.base.ValidationError as err:
-            warning("Creating fact from {} failes du to URI validation {}".format(uri, err))
+            warning(f"Fact from {uri} failes du to URI validation {err}")
         except act.api.schema.MissingField:
-            warning("Unable to create facts from uri: {}".format(uri))
+            warning(f"Unable to create facts from uri: {uri}")
 
     # Locations (countries, regions, sub regions)
     for location_type in EXTRACT_GEONAMES:
-        locations = {x['name'] for x in doc.get("locations", {}).get(location_type, [])}
+        locations = {x['name']
+                     for x in doc.get("locations", {}).get(location_type, [])}
 
         report_mentions_fact(
             actapi,
@@ -196,7 +197,8 @@ def add_to_act(actapi: act.api.Act, doc: Dict, output_format: Text = "json") -> 
 def main() -> None:
     """main function"""
 
-    # Look for default ini file in "/etc/actworkers.ini" and ~/config/actworkers/actworkers.ini
+    # Look for default ini file in "/etc/actworkers.ini"
+    # and ~/config/actworkers/actworkers.ini
     # (or replace .config with $XDG_CONFIG_DIR if set)
     args = worker.handle_args(parseargs())
 
@@ -215,7 +217,7 @@ def main_log_error() -> None:
     try:
         main()
     except Exception:
-        error("Unhandled exception: {}".format(traceback.format_exc()))
+        error(f"Unhandled exception: {traceback.format_exc()}")
         raise
 
 
