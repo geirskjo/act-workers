@@ -71,25 +71,11 @@ def report_mentions_fact(actapi: act.api.Act,
             error("Unable to create linked fact: %s" % e)
 
 
-def add_to_act(actapi: act.api.Act,
-               doc: Dict,
-               output_format: Text = "json") -> None:
-    """Add a report to the ACT platform"""
-
-    report_id: Text = doc["hexdigest"]
-    filename: Text = os.path.basename(doc.get("filename", "NN"))
-    title: Text = doc.get("title", filename)
-    indicators: Dict = doc.get("indicators", {})
-
-    try:
-        # Report title
-        handle_fact(
-            actapi.fact("name", title)
-            .source("report", report_id),
-            output_format
-        )
-    except act.api.base.ResponseError as e:
-        error("Unable to create fact: %s" % e)
+def add_indicators_to_act(actapi: act.api.Act,
+                          indicators: Dict,
+                          report_id: Text,
+                          output_format: Text) -> None:
+    """Create facts of indicators map"""
 
     # Loop over all items under indicators in report
     for scio_indicator_type in EXTRACT_INDICATORS:
@@ -157,10 +143,17 @@ def add_to_act(actapi: act.api.Act,
         except act.api.schema.MissingField:
             warning(f"Unable to create facts from uri: {uri}")
 
+
+def add_locations_to_act(actapi: act.api.Act,
+                         locations_map: Dict,
+                         report_id: Text,
+                         output_format: Text) -> None:
+    """Create facts from locations map"""
+
     # Locations (countries, regions, sub regions)
     for location_type in EXTRACT_GEONAMES:
         locations = {x['name']
-                     for x in doc.get("locations", {}).get(location_type, [])}
+                     for x in locations_map.get(location_type, [])}
 
         report_mentions_fact(
             actapi,
@@ -168,6 +161,32 @@ def add_to_act(actapi: act.api.Act,
             locations,
             report_id,
             output_format)
+
+
+def add_to_act(actapi: act.api.Act,
+               doc: Dict,
+               output_format: Text = "json") -> None:
+    """Add a report to the ACT platform"""
+
+    report_id: Text = doc["hexdigest"]
+    filename: Text = os.path.basename(doc.get("filename", "NN"))
+    title: Text = doc.get("title", filename)
+
+    indicators: Dict = doc.get("indicators", {})
+    locations: Dict = doc.get("locations", {})
+
+    try:
+        # Report title
+        handle_fact(
+            actapi.fact("name", title)
+            .source("report", report_id),
+            output_format
+        )
+    except act.api.base.ResponseError as e:
+        error("Unable to create fact: %s" % e)
+
+    add_indicators_to_act(actapi, indicators, report_id, output_format)
+    add_locations_to_act(actapi, locations, report_id, output_format)
 
     # Threat actor
     report_mentions_fact(
