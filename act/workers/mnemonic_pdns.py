@@ -36,7 +36,7 @@ def parseargs() -> argparse.ArgumentParser:
                         default=1000, help="Batch size of pdns queries")
     parser.add_argument('--pdns-apikey', dest='apikey',
                         help="PassiveDNS API key")
-    parser.add_argument('--limit', dest='limit', type=int, default=0,
+    parser.add_argument('--limit', dest='limit', type=int, default=100,
                         help="Maximum number of records to return from pdns")
 
     return parser
