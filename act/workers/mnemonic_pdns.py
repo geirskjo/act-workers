@@ -33,7 +33,7 @@ def parseargs() -> argparse.ArgumentParser:
     parser.add_argument('--pdns-timeout', dest='timeout', type=int,
                         default=299, help="Timeout")
     parser.add_argument('--pdns-batch-size', dest='pdns_batch_size', type=int,
-                        default=1000, help="Batch size of pdns queries")
+                        default=100, help="Batch size of pdns queries")
     parser.add_argument('--pdns-apikey', dest='apikey',
                         help="PassiveDNS API key")
     parser.add_argument('--limit', dest='limit', type=int, default=100,
