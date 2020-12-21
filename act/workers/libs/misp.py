@@ -1,3 +1,5 @@
+"""Library for working with MISP export files"""
+
 import enum
 import uuid
 import json
@@ -6,6 +8,7 @@ import re
 import ipaddress
 
 from typing import Optional, Text, Any, Tuple, Dict, Callable
+
 
 class ThreatLevelID(enum.Enum):
     """2.2.1.5.  threat_level_id
@@ -70,17 +73,15 @@ class Distribution(enum.Enum):
     INHERIT_EVENT = 5
 
 
-class Event(object):
+class Event:  # pylint: disable=R0902
+    """Event represents a MISP event"""
 
     # --- MUST ----
-    _uuid = None
     published = None
     info = None
     threat_level_id = ThreatLevelID.UNDEFINED
     analysis = Analysis.INITIAL
     date = None  # ISO-8601 (date only: YYYY-MM-DD) reference date of the event
-    timestamp = None  # Timestamp of event creation or event/attribute last update
-    publish_timestamp = None  # reference time when the event was published on the instance.
     org_id = None  # Human readable org. generating the Event
     orgc_id = None  # Human readble org. *creating* the Event
     attribute_count = 0
@@ -95,10 +96,10 @@ class Event(object):
     tlp = None
     misp_galaxy: Dict[Text, Text] = {}
 
-    def __init__(self, loads: Optional[Text]=None) -> None:
+    def __init__(self, loads: Optional[Text] = None) -> None:
         self._uuid: uuid.UUID = uuid.uuid4()
-        self.timestamp: int = int(time.time())
-        self.publish_timestamp: int = int(time.time())
+        self.timestamp: int = int(time.time())  # Timestamp of event creation or event/attribute last update
+        self.publish_timestamp: int = int(time.time())  # reference time when the event was published on the instance.
 
         if loads:
             data = json.loads(loads)
@@ -137,6 +138,10 @@ class Event(object):
         return "({0}) {1} - {2} ".format(self.timestamp, self._uuid, self.info)
 
     def write_to(self, stream: Any) -> None:
+        """This is a debug method, used to dump a json representation of the
+        data contained in the Event. This is not intended for permanent storage and
+        reload of an event."""
+
         stream.write(json.dumps(
             {
                 "uuid": str(self._uuid),
@@ -157,10 +162,13 @@ class Event(object):
 
     @property
     def uuid(self):  # type: ignore
+        """The Event UUID property"""
         return self._uuid
 
 
-class Attribute(object):  # attributeattributes in misp babel
+class Attribute:  # attributeattributes in misp babel pylint: disable=R0903
+    """Represents a MISP attribute, performing the neccessary translations between
+    misp and act namespaces"""
 
     def __init__(self, attributedict: Dict[Text, Text]):
 
@@ -183,38 +191,47 @@ class Attribute(object):  # attributeattributes in misp babel
 
 
 def hash_f(x: Text) -> Tuple[Text, Text]:
+    """Translation function misp -> act"""
     return "hash", x.lower()
 
 
 def certificate_f(x: Text) -> Tuple[Text, Text]:
+    """Translation function misp -> act"""
     return "certificate", x.lower()
 
 
 def threat_actor_f(x: Text) -> Tuple[Text, Text]:
+    """Translation function misp -> act"""
     return "threatActor", x.lower()
 
 
 def campaign_f(x: Text) -> Tuple[Text, Text]:
+    """Translation function misp -> act"""
     return "campaign", x.lower()
 
 
 def email_f(x: Text) -> Tuple[Text, Text]:
+    """Translation function misp -> act"""
     return "uri", "email://{}".format(x.lower())
 
 
 def person_f(x: Text) -> Tuple[Text, Text]:
+    """Translation function misp -> act"""
     return "person", x.lower()
 
 
 def organization_f(x: Text) -> Tuple[Text, Text]:
+    """Translation function misp -> act"""
     return "organization", x.lower()
 
 
 def fqdn_f(x: Text) -> Tuple[Text, Text]:
+    """Translation function misp -> act"""
     return "fqdn", x.lower()
 
 
 def ip_f(x: Text) -> Tuple[Optional[Text], Optional[Text]]:
+    """Translation function misp -> act"""
     try:
         addrv6 = ipaddress.IPv6Address(x)
         return "ipv6", str(addrv6.exploded)
@@ -229,20 +246,24 @@ def ip_f(x: Text) -> Tuple[Optional[Text], Optional[Text]]:
 
 
 def uri_f(x: Text) -> Tuple[Text, Text]:
+    """Translation function misp -> act"""
     if not x.startswith("http"):
         x = "http://{0}".format(x)
     return "uri", x
 
 
 def user_agent_f(x: Text) -> Tuple[Text, Text]:
+    """Translation function misp -> act"""
     return "userAgent", x
 
 
 def vulnerability_f(x: Text) -> Tuple[Text, Text]:
+    """Translation function misp -> act"""
     return "vulnerability", x.lower()
 
 
 def mutex_f(x: Text) -> Tuple[Text, Text]:
+    """Translation function misp -> act"""
     return "mutex", x
 
 
@@ -275,7 +296,3 @@ map_misp_to_act: Dict[Text, Callable[[Text], Tuple[Optional[Text], Optional[Text
     "whois-registrar": organization_f,
     "x509-fingerprint-sha1": certificate_f,
 }
-
-
-class IncompleteEventException(Exception):
-    pass
