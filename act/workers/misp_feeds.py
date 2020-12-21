@@ -150,7 +150,7 @@ def main() -> None:
                     n += 1
                 except act.api.base.ResponseError as err:
                     e += 1
-                    error("misp_feeds, main unable to add fact to platform: %s" % err, exc_info=True)
+                    error("misp_feeds, main unable to add fact to platform, error calling actapi: %s" % err, exc_info=True)
 
                 for attribute in event.attributes:
                     if not attribute.act_type:
@@ -164,7 +164,7 @@ def main() -> None:
                         n += 1
                     except act.api.base.ResponseError as err:
                         e += 1
-                        error("misp_feeds, main unable to add attribute fact to platform: %s" % err, exc_info=True)
+                        error("misp_feeds: main unable to add attribute fact to platform, error calling actapi: %s" % err, exc_info=True)
                 info("{0} facts. {1} errors.".format(n, e))
 
 

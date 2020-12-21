@@ -137,29 +137,6 @@ class Event:  # pylint: disable=R0902
     def __str__(self) -> Text:
         return "({0}) {1} - {2} ".format(self.timestamp, self._uuid, self.info)
 
-    def write_to(self, stream: Any) -> None:
-        """This is a debug method, used to dump a json representation of the
-        data contained in the Event. This is not intended for permanent storage and
-        reload of an event."""
-
-        stream.write(json.dumps(
-            {
-                "uuid": str(self._uuid),
-                "published": self.published,
-                "info": self.info,
-                "threat_level_id": self.threat_level_id.value,
-                "analysis": self.analysis.value,
-                "date": self.date,
-                "timestamp": self.timestamp,
-                "publish_timestamp": self.publish_timestamp,
-                "org_id": self.org_id,
-                "orgc_id": self.orgc_id,
-                "attribute_count": self.attribute_count,
-                "distribution": self.distribution.value,
-                "sharing_group_id": self.sharing_group_id,
-                "extends_uuid": self.extends_uuid,
-            }))
-
     @property
     def uuid(self):  # type: ignore
         """The Event UUID property"""
@@ -181,7 +158,7 @@ class Attribute:  # attributeattributes in misp babel pylint: disable=R0903
             self.act_type, self.value = mapper_fn(attributedict["value"])
             if "RelatedAttribute" in attributedict and attributedict["RelatedAttribute"]:
                 print("DEBUG: {0}".format(attributedict["RelatedAttribute"]))
-        except:
+        except:  # noqa=E722 (silence Flake8; catching for logging and re-raise)
             print(attributedict)
             print(attributedict["value"][:100])
             raise
